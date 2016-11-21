@@ -22,13 +22,19 @@
             if (!msg.value) {
                 return false;
             }
-            conn.send(msg.value);
+
+            var jsonMsg = new Object();
+            jsonMsg.Message = msg.value;
+            jsonMsg.HubID = 1;
+            console.log(jsonMsg);
+            conn.send(jsonMsg);
+
             msg.value = "";
             return false;
         };
 
         if (window["WebSocket"]) {
-            conn = new WebSocket("ws://{{$}}/websocket:open");
+            conn = new WebSocket("ws://{{$}}/websocket/open");
             
             conn.onclose = function (evt) {
                 var item = document.createElement("div");

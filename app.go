@@ -24,7 +24,7 @@ func main() {
 
 	router := httprouter.New()
 	router.GET("/", Index)
-	router.GET("/websocket/open", ServeWebsocket)
+	router.GET("/websocket/open", gorilla.ServeWebsocket)
 
 	log.Println("starting chat app [localhost:8080]")
 	log.Fatal(http.ListenAndServe(":8080", router))

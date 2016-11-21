@@ -31,14 +31,19 @@ const (
 	MESSAGE_TYPE_BROADCAST = 100
 )
 
+var (
+	newline = []byte{'\n'}
+	space   = []byte{' '}
+)
+
 type Client struct {
 	userID     int64
 	conn       *websocket.Conn
-	send       chan WebsocketMessage
-	joinedHubs map[string]*Hub
+	send       chan *WebsocketMessage
+	joinedHubs map[int64]*Hub
 }
 
-func (c *Client) joinHub(id string) {
+func (c *Client) joinHub(id int64) {
 	hub := hm.getHub(id)
 	hub.register <- c
 }
@@ -50,7 +55,9 @@ func (c *Client) joinHub(id string) {
 // reads from this goroutine.
 func (c *Client) readPump() {
 	defer func() {
-		c.hub.unregister <- c
+		for _, hub := range c.joinedHubs {
+			hub.unregister <- c
+		}
 		c.conn.Close()
 	}()
 	c.conn.SetReadLimit(MAX_MESSAGE_SIZE)
@@ -62,7 +69,7 @@ func (c *Client) readPump() {
 		})
 
 	for {
-		msg := WebsocketMessage{}
+		msg := &WebsocketMessage{}
 		err := c.conn.ReadJSON(&msg)
 		msg.From = c.userID
 		if err != nil {
@@ -73,8 +80,7 @@ func (c *Client) readPump() {
 		}
 		log.Println(msg)
 		hub := c.joinedHubs[msg.HubID]
-		hub.
-			c.hub.broadcast <- message
+		hub.broadcast <- msg
 	}
 }
 
@@ -84,15 +90,15 @@ func (c *Client) readPump() {
 // application ensures that there is at most one writer to a connection by
 // executing all writes from this goroutine.
 func (c *Client) writePump() {
-	ticker := time.NewTicker(pingPeriod)
+	ticker := time.NewTicker(PING_PERIOD)
 	defer func() {
 		ticker.Stop()
 		c.conn.Close()
 	}()
 	for {
 		select {
-		case message, ok := <-c.send:
-			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+		case wsMsg, ok := <-c.send:
+			c.conn.SetWriteDeadline(time.Now().Add(WRITE_WAIT))
 			if !ok {
 				// The hub closed the channel.
 				c.conn.WriteMessage(websocket.CloseMessage, []byte{})
@@ -103,20 +109,20 @@ func (c *Client) writePump() {
 			if err != nil {
 				return
 			}
-			w.Write(message)
+			w.Write([]byte(wsMsg.Message))
 
 			// Add queued chat messages to the current websocket message.
-			n := len(c.send)
-			for i := 0; i < n; i++ {
-				w.Write(newline)
-				w.Write(<-c.send)
-			}
+			// n := len(c.send)
+			// for i := 0; i < n; i++ {
+			// 	w.Write(newline)
+			// 	w.Write([]byte(<-c.send.Message))
+			// }
 
 			if err := w.Close(); err != nil {
 				return
 			}
 		case <-ticker.C:
-			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+			c.conn.SetWriteDeadline(time.Now().Add(WRITE_WAIT))
 			if err := c.conn.WriteMessage(websocket.PingMessage, []byte{}); err != nil {
 				return
 			}
