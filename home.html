@@ -24,8 +24,8 @@
             }
 
             var jsonMsg = new Object();
-            jsonMsg.Message = msg.value;
-            jsonMsg.HubID = 1;
+            jsonMsg.message = msg.value;
+            jsonMsg.hub_id = 1;
             console.log(jsonMsg);
             conn.send(jsonMsg);
 

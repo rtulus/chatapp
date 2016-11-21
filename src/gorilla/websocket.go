@@ -45,6 +45,7 @@ func ServeWebsocket(w http.ResponseWriter, r *http.Request, _ httprouter.Params)
 		joinedHubs: make(map[int64]*Hub),
 	}
 	uid++
+	log.Println("uid", uid)
 
 	// hubIDs := params.ByName("hub_ids")
 	// hubIDarr := strings.Split(hubIDs, ",")
@@ -53,6 +54,7 @@ func ServeWebsocket(w http.ResponseWriter, r *http.Request, _ httprouter.Params)
 	// 		client.joinHub(hubID)
 	// 	}
 	// }
+	log.Println("joining hub 1")
 	client.joinHub(1)
 
 	go client.writePump()

@@ -44,8 +44,13 @@ type Client struct {
 }
 
 func (c *Client) joinHub(id int64) {
-	hub := hm.getHub(id)
+	hub, isNew := hm.getHub(id)
+	if isNew {
+		go hub.run()
+	}
+	log.Println("%+v", hub)
 	hub.register <- c
+	log.Println("register client to hub", id)
 }
 
 // readPump pumps messages from the websocket connection to the hub.
@@ -69,9 +74,10 @@ func (c *Client) readPump() {
 		})
 
 	for {
-		msg := &WebsocketMessage{}
+		msg := WebsocketMessage{}
 		err := c.conn.ReadJSON(&msg)
 		msg.From = c.userID
+		log.Println("%+v", msg)
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway) {
 				log.Printf("error: %v", err)
@@ -80,7 +86,7 @@ func (c *Client) readPump() {
 		}
 		log.Println(msg)
 		hub := c.joinedHubs[msg.HubID]
-		hub.broadcast <- msg
+		hub.broadcast <- &msg
 	}
 }
 

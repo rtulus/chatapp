@@ -3,6 +3,7 @@ package gorilla
 import (
 	"errors"
 	"fmt"
+	"log"
 )
 
 type HubManager struct {
@@ -15,16 +16,17 @@ func newHubManager() *HubManager {
 	}
 }
 
-func (hm *HubManager) getHub(id int64) *Hub {
-
+func (hm *HubManager) getHub(id int64) (*Hub, bool) {
+	log.Println("getting new hub", id)
 	hub, exist := hm.hubs[id]
 	if !exist {
+		log.Println("Yay new hub!")
 		hub := newHub(id)
 		hm.registerHub(id, hub)
-
-		hub.run()
+		log.Println("%+v", hm.hubs[id])
+		return hub, true
 	}
-	return hub
+	return hub, false
 }
 
 func (hm *HubManager) registerHub(id int64, h *Hub) error {
@@ -83,6 +85,7 @@ func (h *Hub) run() {
 	for {
 		select {
 		case client := <-h.register:
+			log.Println("registering new client")
 			h.clients[client] = true
 		case client := <-h.unregister:
 			if _, ok := h.clients[client]; ok {
