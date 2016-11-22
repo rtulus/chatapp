@@ -1,6 +1,7 @@
 package gorilla
 
 import (
+	"fmt"
 	"log"
 	"time"
 
@@ -44,13 +45,11 @@ type Client struct {
 }
 
 func (c *Client) joinHub(id int64) {
-	hub, isNew := hm.getHub(id)
-	if isNew {
-		go hub.run()
+	hub := hm.getHub(id)
+	if hub != nil {
+		hub.register <- c
+		c.joinedHubs[id] = hub
 	}
-	log.Println("%+v", hub)
-	hub.register <- c
-	log.Println("register client to hub", id)
 }
 
 // readPump pumps messages from the websocket connection to the hub.
@@ -77,15 +76,16 @@ func (c *Client) readPump() {
 		msg := WebsocketMessage{}
 		err := c.conn.ReadJSON(&msg)
 		msg.From = c.userID
-		log.Println("%+v", msg)
+		log.Printf("msg: %+v", msg)
 		if err != nil {
+			log.Println("Error:", err)
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway) {
 				log.Printf("error: %v", err)
 			}
 			break
 		}
-		log.Println(msg)
 		hub := c.joinedHubs[msg.HubID]
+		log.Printf("hub: %+v", hub)
 		hub.broadcast <- &msg
 	}
 }
@@ -107,6 +107,7 @@ func (c *Client) writePump() {
 			c.conn.SetWriteDeadline(time.Now().Add(WRITE_WAIT))
 			if !ok {
 				// The hub closed the channel.
+				log.Println("closing writePump connection")
 				c.conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
@@ -115,7 +116,8 @@ func (c *Client) writePump() {
 			if err != nil {
 				return
 			}
-			w.Write([]byte(wsMsg.Message))
+			message := fmt.Sprintf("User %d: %s", wsMsg.From, wsMsg.Message)
+			w.Write([]byte(message))
 
 			// Add queued chat messages to the current websocket message.
 			// n := len(c.send)

@@ -3,6 +3,7 @@ package gorilla
 import (
 	"log"
 	"net/http"
+	"strconv"
 
 	"github.com/gorilla/websocket"
 	"github.com/julienschmidt/httprouter"
@@ -26,7 +27,7 @@ func InitWebsocket() {
 	hm = newHubManager()
 }
 
-func ServeWebsocket(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+func ServeWebsocket(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	log.Println("serve client websocket")
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -45,7 +46,6 @@ func ServeWebsocket(w http.ResponseWriter, r *http.Request, _ httprouter.Params)
 		joinedHubs: make(map[int64]*Hub),
 	}
 	uid++
-	log.Println("uid", uid)
 
 	// hubIDs := params.ByName("hub_ids")
 	// hubIDarr := strings.Split(hubIDs, ",")
@@ -54,8 +54,13 @@ func ServeWebsocket(w http.ResponseWriter, r *http.Request, _ httprouter.Params)
 	// 		client.joinHub(hubID)
 	// 	}
 	// }
-	log.Println("joining hub 1")
-	client.joinHub(1)
+
+	hid, err := strconv.ParseInt(ps.ByName("id"), 10, 64)
+	if err != nil {
+		log.Println("Error parsing hub_id")
+	}
+	log.Println("user", client.userID, "joining hub", hid)
+	client.joinHub(hid)
 
 	go client.writePump()
 	client.readPump()

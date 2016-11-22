@@ -7,6 +7,8 @@
         var conn;
         var msg = document.getElementById("msg");
         var log = document.getElementById("log");
+        var url_path = window.location.pathname;
+        var channel_id = url_path.split("/channelroom/")[1];
         function appendLog(item) {
             var doScroll = log.scrollTop === log.scrollHeight - log.clientHeight;
             log.appendChild(item);
@@ -25,16 +27,23 @@
 
             var jsonMsg = new Object();
             jsonMsg.message = msg.value;
-            jsonMsg.hub_id = 1;
+            jsonMsg.hub_id = parseInt(channel_id);
             console.log(jsonMsg);
-            conn.send(jsonMsg);
+            conn.send(JSON.stringify(jsonMsg));
 
             msg.value = "";
             return false;
         };
 
         if (window["WebSocket"]) {
-            conn = new WebSocket("ws://{{$}}/websocket/open");
+            websocketUri = "ws://{{$}}/websocket/open";
+            if (channel_id) {
+                websocketUri = websocketUri + "/" + channel_id;
+            } else {
+                channel_id = "1";
+                websocketUri = websocketUri + "/" + channel_id;
+            }
+            conn = new WebSocket(websocketUri);
             
             conn.onclose = function (evt) {
                 var item = document.createElement("div");
@@ -96,8 +105,8 @@ body {
 <body>
 <div id="log"></div>
 <form id="form">
-    <input type="submit" value="Send" />
     <input type="text" id="msg" size="64"/>
+    <input type="submit" value="Send" />
 </form>
 </body>
 </html>

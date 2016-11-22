@@ -16,17 +16,15 @@ func newHubManager() *HubManager {
 	}
 }
 
-func (hm *HubManager) getHub(id int64) (*Hub, bool) {
+func (hm *HubManager) getHub(id int64) *Hub {
 	log.Println("getting new hub", id)
 	hub, exist := hm.hubs[id]
 	if !exist {
-		log.Println("Yay new hub!")
-		hub := newHub(id)
+		hub = newHub(id)
 		hm.registerHub(id, hub)
-		log.Println("%+v", hm.hubs[id])
-		return hub, true
+		go hub.run()
 	}
-	return hub, false
+	return hub
 }
 
 func (hm *HubManager) registerHub(id int64, h *Hub) error {
@@ -41,10 +39,14 @@ func (hm *HubManager) registerHub(id int64, h *Hub) error {
 
 func (hm *HubManager) unregisterHub(id int64) {
 
-	if hub, ok := hm.hubs[id]; ok {
-		close(hub.register)
-		close(hub.unregister)
-		close(hub.broadcast)
+	if _, ok := hm.hubs[id]; ok {
+		// log.Println("closing register")
+		// close(hub.register)
+		// log.Println("closing unregister")
+		// close(hub.unregister)
+		// log.Println("closing broadcast")
+		// close(hub.broadcast)
+		log.Println("delete hub from hub manager")
 		delete(hm.hubs, id)
 	}
 }
@@ -85,11 +87,12 @@ func (h *Hub) run() {
 	for {
 		select {
 		case client := <-h.register:
-			log.Println("registering new client")
+			log.Println("register user", client.userID, "to hub", h.id)
 			h.clients[client] = true
+
 		case client := <-h.unregister:
 			if _, ok := h.clients[client]; ok {
-
+				log.Println("unregister client", client.userID, "from hub", h.id)
 				// delete client from hub
 				delete(h.clients, client)
 				close(client.send)
@@ -99,7 +102,10 @@ func (h *Hub) run() {
 					hm.unregisterHub(h.id)
 				}
 			}
+
 		case message := <-h.broadcast:
+			log.Println("broadcast message on hub", h.id)
+			log.Printf("message: %+v", message)
 			for client := range h.clients {
 				select {
 				case client.send <- message:
