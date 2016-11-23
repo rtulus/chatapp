@@ -81,7 +81,12 @@ func newHub(id int64) *Hub {
 
 func (h *Hub) run() {
 	defer func() {
-		hm.unregisterHub(h.id)
+		log.Println("closing register")
+		close(h.register)
+		log.Println("closing unregister")
+		close(h.unregister)
+		log.Println("closing broadcast")
+		close(h.broadcast)
 	}()
 
 	for {

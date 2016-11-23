@@ -19,7 +19,7 @@ const (
 	PING_PERIOD = (PONG_WAIT * 9) / 10
 
 	// Maximum message size allowed from peer.
-	MAX_MESSAGE_SIZE = 512
+	MAX_MESSAGE_SIZE = 1024
 
 	// We should have a system to determine what type of message we got
 	// and do actions accordingly.
@@ -47,8 +47,13 @@ type Client struct {
 func (c *Client) joinHub(id int64) {
 	hub := hm.getHub(id)
 	if hub != nil {
+		joinMessage := WebsocketMessage{}
+		joinMessage.Message = fmt.Sprintf("User %d joined this chat room", c.userID)
+		hub.broadcast <- &joinMessage
+
 		hub.register <- c
 		c.joinedHubs[id] = hub
+
 	}
 }
 
@@ -75,18 +80,25 @@ func (c *Client) readPump() {
 	for {
 		msg := WebsocketMessage{}
 		err := c.conn.ReadJSON(&msg)
-		msg.From = c.userID
 		log.Printf("msg: %+v", msg)
-		if err != nil {
-			log.Println("Error:", err)
-			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway) {
-				log.Printf("error: %v", err)
+		if websocket.IsCloseError(err, websocket.CloseGoingAway) {
+			msg.Message = fmt.Sprintf("User %d left this chat room", c.userID)
+			for _, hub := range c.joinedHubs {
+				hub.broadcast <- &msg
 			}
 			break
+
+		} else if err != nil {
+			log.Println("Error:", err)
+			break
+
+		} else {
+			msg.From = c.userID
+			hub := c.joinedHubs[msg.HubID]
+			if hub != nil {
+				hub.broadcast <- &msg
+			}
 		}
-		hub := c.joinedHubs[msg.HubID]
-		log.Printf("hub: %+v", hub)
-		hub.broadcast <- &msg
 	}
 }
 
@@ -104,10 +116,11 @@ func (c *Client) writePump() {
 	for {
 		select {
 		case wsMsg, ok := <-c.send:
+			log.Printf("message received on user %d:\n%s", c.userID, wsMsg.Message)
 			c.conn.SetWriteDeadline(time.Now().Add(WRITE_WAIT))
 			if !ok {
 				// The hub closed the channel.
-				log.Println("closing writePump connection")
+				log.Println(c.userID, "closing writePump connection")
 				c.conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
@@ -117,6 +130,9 @@ func (c *Client) writePump() {
 				return
 			}
 			message := fmt.Sprintf("User %d: %s", wsMsg.From, wsMsg.Message)
+			if wsMsg.From <= 0 {
+				message = fmt.Sprintf("<b>%s</b>", wsMsg.Message)
+			}
 			w.Write([]byte(message))
 
 			// Add queued chat messages to the current websocket message.

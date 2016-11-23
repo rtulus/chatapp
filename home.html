@@ -8,7 +8,7 @@
         var msg = document.getElementById("msg");
         var log = document.getElementById("log");
         var url_path = window.location.pathname;
-        var channel_id = url_path.split("/channelroom/")[1];
+        var chatroom_id = url_path.split("/chatroom/")[1];
         function appendLog(item) {
             var doScroll = log.scrollTop === log.scrollHeight - log.clientHeight;
             log.appendChild(item);
@@ -24,10 +24,14 @@
             if (!msg.value) {
                 return false;
             }
-
+            message = msg.value;
+            if (message.length > 1024) {
+                message = message.substring(0, 1024);
+            }
+            
             var jsonMsg = new Object();
-            jsonMsg.message = msg.value;
-            jsonMsg.hub_id = parseInt(channel_id);
+            jsonMsg.message = message;
+            jsonMsg.hub_id = parseInt(chatroom_id);
             console.log(jsonMsg);
             conn.send(JSON.stringify(jsonMsg));
 
@@ -37,12 +41,10 @@
 
         if (window["WebSocket"]) {
             websocketUri = "ws://{{$}}/websocket/open";
-            if (channel_id) {
-                websocketUri = websocketUri + "/" + channel_id;
-            } else {
-                channel_id = "1";
-                websocketUri = websocketUri + "/" + channel_id;
+            if (!chatroom_id) {
+                chatroom_id = "1";
             }
+            websocketUri = websocketUri + "/" + chatroom_id;
             conn = new WebSocket(websocketUri);
             
             conn.onclose = function (evt) {
@@ -52,10 +54,11 @@
             };
             
             conn.onmessage = function (evt) {
+                console.log(evt);
                 var messages = evt.data.split('\n');
                 for (var i = 0; i < messages.length; i++) {
                     var item = document.createElement("div");
-                    item.innerText = messages[i];
+                    item.innerHTML = messages[i];
                     appendLog(item);
                 }
             };

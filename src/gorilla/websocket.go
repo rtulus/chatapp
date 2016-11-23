@@ -10,8 +10,8 @@ import (
 )
 
 var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
+	ReadBufferSize:  MAX_MESSAGE_SIZE,
+	WriteBufferSize: MAX_MESSAGE_SIZE,
 }
 
 var uid int64 = 1
@@ -64,4 +64,5 @@ func ServeWebsocket(w http.ResponseWriter, r *http.Request, ps httprouter.Params
 
 	go client.writePump()
 	client.readPump()
+
 }
