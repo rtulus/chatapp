@@ -1,2 +1,2 @@
 # Chat App
-Testing model chat application
+Sample chat application with multiple chatroom in go 
